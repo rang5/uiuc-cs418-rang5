@@ -37,6 +37,7 @@ out vec3 avp;
 out vec3 avpbg;
 out vec3 vNormal;
 out vec3 n, l, v;
+out vec2 vN;
 
 void main() {
   float pi = 3.1415926;
@@ -45,9 +46,12 @@ void main() {
 
   n = normalize(uNormalMatrix*aVertexNormal);
   l = vec3(0.75, 0.5, 0.0);
-  // l = normalize(uNormalMatrix*vec3(0.0,0.0,0.0));
-  // vec4 p = uModelViewMatrix*vec4(aVertexPosition, 1.0);
-  // v = normalize(-p.xyz);
+  vec4 p = uModelViewMatrix*vec4(aVertexPosition, 1.0);
+  v = normalize(-p.xyz);
+
+  vec3 r = reflect(-v, n);
+  float m = 2. * sqrt(pow(r.x, 2.0) + pow(r.y, 2.0) + pow(r.z + 1., 2.0));
+  vN = r.xy / m + 0.5;
 
 
   avp = 2.0 * aVertexPosition;
@@ -69,6 +73,7 @@ in vec3 vNormal;
 in vec2 vTexCoord;
 in vec3 avp;
 in vec3 avpbg;
+in vec2 vN;
 uniform sampler2D uSampler;
 uniform sampler2D uSampler2;
 
@@ -80,10 +85,12 @@ void main() {
   float pi = 3.1415926;
   vec2 st = vec2(atan(avp.z, avp.x) / (-2.0 * pi), avp.y);
   vec2 bg = vec2(avpbg.x, avpbg.y);
+  // vec3 abg = vec3(avpbg.x, avpbg.y, avpbg.z);
 
   // lighting
   vec3 n_norm = normalize(n);
   vec3 l_norm = normalize(l);
+  vec3 v_norm = normalize(v);
   
   float n_dot_l = max(dot(n_norm, l_norm), 0.0);
   float diffuse_num = 0.5 * n_dot_l;
@@ -93,12 +100,22 @@ void main() {
   float ref_dot_l = max(dot(reflection, v), 0.0);
   float spec_num = 0.5 * pow(ref_dot_l, 10.0);
 
+  // Stadium reflection
+  vec3 eye = normalize(avpbg);
+  vec3 dir = reflect(-v, n_norm);
+  // vec2 dir = reflect(bg, vec2(n_norm.x, n_norm.y));
+  // vec3 dir = v;
+
   // Putting everything together
   vec3 illinois = vec3(texture(uSampler, st + 0.5));
-  vec3 stadium = vec3(texture(uSampler2, bg));
+  // vec3 stadium = vec3(texture(uSampler2, vec2(dir.x, dir.y)));
+  vec3 stadium = vec3(texture(uSampler2, vN));
+  
   vec3 lighting = vec3(1.0, 1.0, 1.0) * diffuse_num + vec3(1.0, 1.0, 1.0) * spec_num;
-  vec3 c = 0.3*illinois + 0.4*stadium + lighting;
+  // vec3 c = 0.3*illinois + 0.9*stadium + lighting;
   // vec3 c = lighting;
+  // vec3 c = 0.3 * illinois + 0.4 * stadium + 0.3 * reflect;
+  vec3 c = stadium;
 
   outColor = vec4(c,1.0);
 }
