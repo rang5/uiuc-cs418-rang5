@@ -35,6 +35,7 @@ uniform mat4 uProjectionMatrix;
 out vec2 vTexCoord;
 out vec2 vTexCoordBG;
 out vec3 avp;
+out vec3 avpbg;
 out vec3 vNormal;
 
 void main() {
@@ -45,6 +46,7 @@ void main() {
   vTexCoordBG.s = aVertexPosition.x + 0.5;
   vTexCoordBG.t = aVertexPosition.y + 0.5;
   avp = 2.0 * aVertexPosition;
+  avpbg = uNormalMatrix * aVertexPosition + 0.5;
 
   gl_Position = uProjectionMatrix*uModelViewMatrix*vec4(aVertexPosition, 1.0);
 }
@@ -62,6 +64,7 @@ in vec3 vNormal;
 in vec2 vTexCoord;
 in vec2 vTexCoordBG;
 in vec3 avp;
+in vec3 avpbg;
 uniform sampler2D uSampler;
 uniform sampler2D uSampler2;
 
@@ -70,9 +73,10 @@ out vec4 outColor;
 void main() {
   float pi = 3.1415926;
   vec2 st = vec2(atan(avp.z, avp.x) / (-2.0 * pi), avp.y);
+  vec2 bg = vec2(avpbg.x, avpbg.y);
 
-  vec3 illinois = vec3(texture(uSampler,  st + 0.5));
-  vec3 stadium = vec3(texture(uSampler2, vTexCoordBG));
+  vec3 illinois = vec3(texture(uSampler, st + 0.5));
+  vec3 stadium = vec3(texture(uSampler2, bg));
   vec3 c = 0.5*illinois + 0.5*stadium;
 
   outColor = vec4(c,1.0);
