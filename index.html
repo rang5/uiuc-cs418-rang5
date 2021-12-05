@@ -101,15 +101,9 @@ void main() {
   vec3 lighting = vec3(1.0, 1.0, 1.0) * diffuse_num + vec3(1.0, 1.0, 1.0) * spec_num;
   vec3 illinois = vec3(texture(uSampler, st + 0.5));
   vec3 stadium = vec3(texture(uSampler2, vNN));
-
-  // if (illinois.x == 1.0 && illinois.y == 1.0 && illinois.z == 1.0) {
-  //   illinois.x = 0.55;
-  //   illinois.y = 0.55;
-  //   illinois.z = 0.55;
-  // }
   
   
-  vec3 c = 0.5*illinois + 0.5*stadium + 0.5*lighting;
+  vec3 c = -0.5 + 0.7*illinois + 0.5*stadium + lighting;
   // vec3 c = lighting;
   // vec3 c = stadium;
 
