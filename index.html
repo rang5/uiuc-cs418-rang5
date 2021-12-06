@@ -37,6 +37,7 @@ out vec3 avp;
 out vec3 avpbg;
 out vec3 vNormal;
 out vec3 n, l, v;
+out vec3 avpbm;
 
 void main() {
   float pi = 3.1415926;
@@ -49,6 +50,7 @@ void main() {
   v = normalize(-p.xyz);
 
   avp = 2.0 * aVertexPosition;
+  avpbm = 5.0 * aVertexPosition;
   avpbg = uNormalMatrix * aVertexPosition + 0.5;
 
   gl_Position = uProjectionMatrix*uModelViewMatrix*vec4(aVertexPosition, 1.0);
@@ -67,8 +69,10 @@ in vec3 vNormal;
 in vec2 vTexCoord;
 in vec3 avp;
 in vec3 avpbg;
+in vec3 avpbm;
 uniform sampler2D uSampler;
 uniform sampler2D uSampler2;
+uniform sampler2D uSampler3;
 
 in vec3 n, l, v;
 
@@ -78,11 +82,23 @@ void main() {
   float pi = 3.1415926;
   vec2 st = vec2(atan(avp.z, avp.x) / (-2.0 * pi), avp.y);
   vec2 bg = vec2(avpbg.x, avpbg.y);
+  vec2 bm = vec2(atan(avpbm.z, avpbm.x) / (-2.0 * pi), avpbm.y);
 
   // lighting
   vec3 n_norm = normalize(n);
   vec3 l_norm = normalize(l);
   vec3 v_norm = normalize(v);
+
+  // // bump mapping
+  // vec3 up_vec = vec3(0.0, 1.0, 0.0);
+  // vec3 pt = cross(up_vec, n_norm);
+  // vec3 ps = cross(n_norm, pt);
+  // // vec3 b_derivs = vec3(texture(uSampler3, bm));
+  // vec4 b_derivs = texture(uSampler3, bm).rgba;
+  // float dbds = b_derivs.g;
+  // float dbdt = b_derivs.b;
+  // vec3 n_prime = n_norm - dbds * (cross(n_norm, pt)) + (cross(n_norm, ps) * dbdt);
+  // n_prime = normalize(n_prime);
   
   float n_dot_l = max(dot(n_norm, l_norm), 0.0);
   float diffuse_num = 0.5 * n_dot_l;
@@ -92,6 +108,12 @@ void main() {
   float ref_dot_l = max(dot(reflection, v), 0.0);
   float spec_num = 0.5 * pow(ref_dot_l, 10.0);
 
+  // Procedural Texture
+  float sx = floor(st.x * 15.0);
+  float sy = floor(st.y * 10.0);
+  float s = mod(sx + sy, 2.0);
+  float t = 1.0 - s;
+
   // Stadium reflection
   vec3 r = reflect(-v_norm, n_norm);
   float m = 2. * sqrt(pow(r.x, 2.0) + pow(r.y, 2.0) + pow(r.z + 1., 2.0));
@@ -99,13 +121,15 @@ void main() {
 
   // Putting everything together
   vec3 lighting = vec3(1.0, 1.0, 1.0) * diffuse_num + vec3(1.0, 1.0, 1.0) * spec_num;
-  vec3 illinois = vec3(texture(uSampler, st + 0.5));
+  vec3 illinois = vec3(texture(uSampler, st + 0.5)) + vec3(1.0, 0.5, 0.0)* s + vec3(0.0, 0.2,0.5) * t;
   vec3 stadium = vec3(texture(uSampler2, vNN));
   
   
-  vec3 c = -0.5 + 0.7*illinois + 0.5*stadium + lighting;
+  vec3 c = -0.8 + 0.7*illinois + 0.5*stadium + lighting;
   // vec3 c = lighting;
   // vec3 c = stadium;
+  // float red = b_derivs.r;
+  // vec3 c = b_derivs;
 
   outColor = vec4(c,1.0);
 }
@@ -231,6 +255,36 @@ function initwebgl() {
     gl.bindTexture(gl.TEXTURE_2D, texture2);
     gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 256, 256, 0, gl.RGBA, gl.UNSIGNED_BYTE, image2);
     gl.generateMipmap(gl.TEXTURE_2D);
+
+  });
+
+  //
+  // set up third texture and sampler
+  //
+
+  texture3 = gl.createTexture();
+  gl.bindTexture(gl.TEXTURE_2D, texture3);
+
+  var sampler3 = gl.createSampler();
+  gl.bindSampler(1, sampler3);
+
+  //
+  // load texture image using webgl2fundamentals boilerplate
+  // initially creates just a 1x1 blue pixel as a placeholder
+  // replaced by actual texture image once loaded
+  //
+
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 1, 1, 0, gl.RGBA,
+                gl.UNSIGNED_BYTE, new Uint8Array([0, 0, 255, 255]));
+
+  var image3 = new Image();
+  image3.src = "no_axis.png";
+
+  image3.addEventListener("load", function() {
+    gl.bindTexture(gl.TEXTURE_2D, texture3);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 256, 256, 0, gl.RGBA, gl.UNSIGNED_BYTE, image3);
+    gl.generateMipmap(gl.TEXTURE_2D);
+
   });
 
   //
@@ -277,7 +331,8 @@ function loadshaders(vertexShaderSource,fragmentShaderSource) {
   normal_uniform = gl.getUniformLocation(shaderProgram, "uNormalMatrix"); 
   projection_uniform = gl.getUniformLocation(shaderProgram, "uProjectionMatrix"); 
   sampler_uniform = gl.getUniformLocation(shaderProgram, "uSampler"); 
-  sampler2_uniform = gl.getUniformLocation(shaderProgram, "uSampler2"); 
+  sampler2_uniform = gl.getUniformLocation(shaderProgram, "uSampler2");
+  sampler3_uniform = gl.getUniformLocation(shaderProgram, "uSampler3"); 
 }
 
 //
@@ -306,11 +361,14 @@ function draw(time) {
 
   gl.uniform1i(sampler_uniform,0);
   gl.uniform1i(sampler2_uniform,1);
+  gl.uniform1i(sampler3_uniform, 2);
 
   gl.activeTexture(gl.TEXTURE0);
   gl.bindTexture(gl.TEXTURE_2D, texture);
   gl.activeTexture(gl.TEXTURE1);
   gl.bindTexture(gl.TEXTURE_2D, texture2);
+  gl.activeTexture(gl.TEXTURE2);
+  gl.bindTexture(gl.TEXTURE_2D, texture3);
 
   gl.bindVertexArray(teapot_vao);
   gl.drawElements(gl.TRIANGLES,
